@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checador Colegio Loyola</title>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #eef2f0;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      color: #173c32;
+    }
+
+    .contenedor {
+      max-width: 480px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 18px;
+      box-shadow: 0 4px 15px #0002;
+    }
+
+    h1 { font-size: 23px; }
+
+    #reader {
+      width: 100%;
+      margin: 20px auto;
+    }
+
+    #mensaje {
+      padding: 20px;
+      border-radius: 12px;
+      background: #edf1ef;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .exito {
+      background: #d9f5df !important;
+      color: #176b35;
+    }
+
+    .error {
+      background: #ffe0e0 !important;
+      color: #a02020;
+    }
+
+    button {
+      background: #176b4b;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 22px;
+      font-size: 17px;
+      margin: 8px;
+    }
+  </style>
+</head>
+
+<body>
+<div class="contenedor">
+
+  <h1>COLEGIO LOYOLA</h1>
+  <h3>CHECADOR DE ASISTENCIA</h3>
+
+  <div id="mensaje">Presiona iniciar para activar la cámara.</div>
+
+  <div id="reader"></div>
+
+  <button id="iniciar" onclick="iniciarCamara()">
+    INICIAR ESCÁNER
+  </button>
+
+</div>
+
+<script>
+const URL_REGISTRO =
+"https://script.google.com/macros/s/AKfycbwYEDwxRWkrCly80LCGQ7RX1c52ggO5xSgJWZJW9P-ouPwrmhR8OeMvRpv-J4YBiYtA/exec";
+
+let lector = null;
+let procesando = false;
+let ultimoQR = "";
+let ultimoTiempo = 0;
+
+function mostrar(texto, clase = "") {
+  const m = document.getElementById("mensaje");
+  m.className = clase;
+  m.textContent = texto;
+}
+
+function iniciarCamara() {
+  const boton = document.getElementById("iniciar");
+  boton.disabled = true;
+
+  lector = new Html5Qrcode("reader");
+
+  lector.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 230, height: 230 } },
+    codigo => procesarQR(codigo),
+    () => {}
+  ).then(() => {
+    mostrar("Cámara activa. Escanea una credencial.");
+  }).catch(error => {
+    boton.disabled = false;
+    mostrar("No se pudo abrir la cámara: " + error, "error");
+  });
+}
+
+function procesarQR(codigo) {
+  if (procesando) return;
+
+  let token;
+
+  try {
+    const url = new URL(codigo);
+    token = url.searchParams.get("t");
+  } catch(e) {
+    mostrar("Código QR no válido", "error");
+    return;
+  }
+
+  if (!token) {
+    mostrar("Credencial sin identificador", "error");
+    return;
+  }
+
+  const ahora = Date.now();
+
+  if (codigo === ultimoQR && ahora - ultimoTiempo < 3000) return;
+
+  procesando = true;
+  ultimoQR = codigo;
+  ultimoTiempo = ahora;
+
+  mostrar("Registrando entrada...");
+
+  const callback = "respuestaQR_" + ahora;
+
+  window[callback] = function(resultado) {
+    if (resultado.ok) {
+      mostrar(
+        "✓ ENTRADA REGISTRADA\n" +
+        resultado.nombre + "\n" +
+        resultado.hora,
+        "exito"
+      );
+
+      try {
+        const audio = new AudioContext();
+        const sonido = audio.createOscillator();
+        const volumen = audio.createGain();
+
+        sonido.connect(volumen);
+        volumen.connect(audio.destination);
+        sonido.frequency.value = 880;
+        volumen.gain.value = 0.12;
+        sonido.start();
+        sonido.stop(audio.currentTime + 0.15);
+      } catch(e) {}
+
+    } else {
+      mostrar(resultado.mensaje, "error");
+    }
+
+    setTimeout(() => {
+      procesando = false;
+      mostrar("Cámara activa. Escanea el siguiente alumno.");
+      delete window[callback];
+    }, 2200);
+  };
+
+  const script = document.createElement("script");
+
+  script.src = URL_REGISTRO +
+    "?t=" + encodeURIComponent(token) +
+    "&callback=" + callback;
+
+  script.onerror = function() {
+    mostrar("No se pudo conectar con el registro.", "error");
+    procesando = false;
+    delete window[callback];
+    script.remove();
+  };
+
+  document.body.appendChild(script);
+}
+</script>
+
+</body>
+</html>
