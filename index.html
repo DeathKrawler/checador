@@ -166,6 +166,9 @@ function procesarQR(codigo) {
         sonido.stop(audio.currentTime + 0.15);
       } catch(e) {}
 
+      // ANUNCIO DE VOZ DEL ALUMNO
+      anunciarAlumno(resultado.nombre, resultado.nivel);
+
     } else {
       mostrar(resultado.mensaje, "error");
     }
@@ -191,6 +194,22 @@ function procesarQR(codigo) {
   };
 
   document.body.appendChild(script);
+}
+
+// FUNCIÓN PARA ANUNCIAR AL ALUMNO
+function anunciarAlumno(nombre, nivel) {
+  window.speechSynthesis.cancel();
+
+  const mensaje = new SpeechSynthesisUtterance(
+    "Alumno " + nombre + ", de " + nivel
+  );
+
+  mensaje.lang = "es-MX";
+  mensaje.rate = 1;
+  mensaje.pitch = 1;
+  mensaje.volume = 1;
+
+  window.speechSynthesis.speak(mensaje);
 }
 </script>
 
