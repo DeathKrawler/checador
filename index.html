@@ -88,6 +88,64 @@ let lector = null;
 let procesando = false;
 let ultimoQR = "";
 let ultimoTiempo = 0;
+let vozEspanol = null;
+
+// BUSCAR UNA VOZ EN ESPAÑOL
+function buscarVoz() {
+  const voces = window.speechSynthesis.getVoices();
+
+  vozEspanol =
+    voces.find(v => v.lang.toLowerCase() === "es-mx") ||
+    voces.find(v => v.lang.toLowerCase().startsWith("es")) ||
+    null;
+}
+
+// PREPARAR LA VOZ AL PRESIONAR INICIAR
+function prepararVoz() {
+  if (!("speechSynthesis" in window)) {
+    mostrar("Este navegador no permite anuncios de voz.", "error");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  buscarVoz();
+
+  const bienvenida = new SpeechSynthesisUtterance(
+    "Escáner activado."
+  );
+
+  bienvenida.lang = "es-MX";
+  bienvenida.rate = 1;
+  bienvenida.pitch = 1;
+  bienvenida.volume = 1;
+
+  if (vozEspanol) {
+    bienvenida.voice = vozEspanol;
+  }
+
+  window.speechSynthesis.speak(bienvenida);
+}
+
+// ANUNCIAR AL ALUMNO REGISTRADO
+function anunciarAlumno(nombre, nivel) {
+  window.speechSynthesis.cancel();
+  buscarVoz();
+
+  const mensajeVoz = new SpeechSynthesisUtterance(
+    "Alumno " + nombre + ", de " + nivel
+  );
+
+  mensajeVoz.lang = "es-MX";
+  mensajeVoz.rate = 1;
+  mensajeVoz.pitch = 1;
+  mensajeVoz.volume = 1;
+
+  if (vozEspanol) {
+    mensajeVoz.voice = vozEspanol;
+  }
+
+  window.speechSynthesis.speak(mensajeVoz);
+}
 
 function mostrar(texto, clase = "") {
   const m = document.getElementById("mensaje");
@@ -98,6 +156,9 @@ function mostrar(texto, clase = "") {
 function iniciarCamara() {
   const boton = document.getElementById("iniciar");
   boton.disabled = true;
+
+  // ACTIVAR EL MOTOR DE VOZ
+  prepararVoz();
 
   lector = new Html5Qrcode("reader");
 
@@ -153,6 +214,7 @@ function procesarQR(codigo) {
         "exito"
       );
 
+      // SONIDO DE CONFIRMACIÓN ORIGINAL
       try {
         const audio = new AudioContext();
         const sonido = audio.createOscillator();
@@ -166,7 +228,7 @@ function procesarQR(codigo) {
         sonido.stop(audio.currentTime + 0.15);
       } catch(e) {}
 
-      // ANUNCIO DE VOZ DEL ALUMNO
+      // ANUNCIAR NOMBRE Y NIVEL
       anunciarAlumno(resultado.nombre, resultado.nivel);
 
     } else {
@@ -196,21 +258,10 @@ function procesarQR(codigo) {
   document.body.appendChild(script);
 }
 
-// FUNCIÓN PARA ANUNCIAR AL ALUMNO
-function anunciarAlumno(nombre, nivel) {
-  window.speechSynthesis.cancel();
+// CARGAR LAS VOCES DISPONIBLES
+window.speechSynthesis.onvoiceschanged = buscarVoz;
+buscarVoz();
 
-  const mensaje = new SpeechSynthesisUtterance(
-    "Alumno " + nombre + ", de " + nivel
-  );
-
-  mensaje.lang = "es-MX";
-  mensaje.rate = 1;
-  mensaje.pitch = 1;
-  mensaje.volume = 1;
-
-  window.speechSynthesis.speak(mensaje);
-}
 </script>
 
 </body>
